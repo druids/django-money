@@ -1,10 +1,15 @@
 # -*- coding: utf-8 -*-
-from django.forms import MultiWidget, Select, TextInput
+from django.forms import MultiWidget, Select, TextInput, NumberInput
+from django.forms.utils import flatatt
+from django.utils.html import format_html
+from django.utils.encoding import force_text
+
+from moneyed.classes import Money
 
 from ..settings import CURRENCY_CHOICES
 
 
-__all__ = ('MoneyWidget',)
+__all__ = ('MoneyWidget', 'MoneyNumberInput')
 
 
 class MoneyWidget(MultiWidget):
@@ -57,3 +62,16 @@ class MoneyWidget(MultiWidget):
                 return True
 
             return False
+
+
+class MoneyNumberInput(NumberInput):
+
+    def render(self, name, value, attrs=None):
+        if isinstance(value, Money):
+            value = value.amount
+
+        return super(MoneyNumberInput, self).render(name, value, attrs=attrs)
+
+    def value_from_datadict(self, data, files, name):
+        value = super(MoneyNumberInput, self).value_from_datadict(data, files, name)
+        return value.amount if isinstance(value, Money) else value

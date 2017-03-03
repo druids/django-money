@@ -11,10 +11,10 @@ from django.forms import ChoiceField, DecimalField, MultiValueField
 from moneyed.classes import Money
 
 from ..settings import CURRENCY_CHOICES
-from .widgets import MoneyWidget
+from .widgets import MoneyWidget, MoneyNumberInput
 
 
-__all__ = ('MoneyField',)
+__all__ = ('MoneyField', 'MoneyDecimalField')
 
 
 class MoneyField(MultiValueField):
@@ -119,3 +119,9 @@ class MoneyField(MultiValueField):
 
     if VERSION < (1, 8):
         _has_changed = has_changed
+
+
+class MoneyDecimalField(DecimalField):
+    def __init__(self, *args, **kwargs):
+        self.widget = MoneyNumberInput()
+        super(MoneyDecimalField, self).__init__(*args, **kwargs)
