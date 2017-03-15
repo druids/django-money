@@ -46,7 +46,7 @@ def Deserializer(stream_or_string, **options):  # noqa
                     # skip fields no longer on model
                     continue
                 field = Model._meta.get_field(field_name)
-                if isinstance(field, MoneyField) and field_value is not None:
+                if isinstance(field, MoneyField) and field_value is not None and not field.currency_property:
                     money_fields[field_name] = Money(field_value, obj['fields'][get_currency_field_name(field_name)])
                 else:
                     fields[field_name] = field_value

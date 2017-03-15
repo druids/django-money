@@ -216,12 +216,13 @@ class MoneyFieldProxy(object):
 
     def __init__(self, field):
         self.field = field
+        self.currency_property = field.currency_property
         self.currency_field_name = get_currency_field_name(self.field.name)
 
     def _money_from_obj(self, obj):
         amount = obj.__dict__[self.field.name]
-        currency = obj.__dict__[self.currency_field_name]
-        if amount is None:
+        currency = getattr(obj, self.currency_property or self.currency_field_name)
+        if amount is None or currency is None:
             return None
         return MoneyPatched(amount=amount, currency=currency)
 
@@ -251,7 +252,7 @@ class MoneyFieldProxy(object):
     def prepare_value(self, obj, value):
         validate_money_value(value)
         currency = get_currency(value)
-        if currency:
+        if currency and not self.currency_property:
             self.set_currency(obj, currency)
         return self.field.to_python(value)
 
@@ -278,13 +279,13 @@ class CurrencyField(models.CharField):
     description = 'A field which stores currency.'
 
     def __init__(self, price_field=None, verbose_name=None, name=None,
-                 default=DEFAULT_CURRENCY, **kwargs):
+                 default=DEFAULT_CURRENCY, choices=CURRENCY_CHOICES, **kwargs):
         if isinstance(default, Currency):
             default = default.code
         kwargs['max_length'] = 3
         self.price_field = price_field
         self.frozen_by_south = kwargs.pop('frozen_by_south', False)
-        super(CurrencyField, self).__init__(verbose_name, name, default=default,
+        super(CurrencyField, self).__init__(verbose_name, name, default=default, choices=choices,
                                             **kwargs)
 
     def contribute_to_class(self, cls, name):
@@ -299,7 +300,9 @@ class MoneyField(models.DecimalField):
                  max_digits=None, decimal_places=None,
                  default=None,
                  default_currency=DEFAULT_CURRENCY,
-                 currency_choices=CURRENCY_CHOICES, **kwargs):
+                 currency_choices=CURRENCY_CHOICES,
+                 currency_property=None,
+                 **kwargs):
         nullable = kwargs.get('null', False)
         default = self.setup_default(default, default_currency, nullable)
         if not default_currency:
@@ -313,8 +316,12 @@ class MoneyField(models.DecimalField):
         self.frozen_by_south = kwargs.pop('frozen_by_south', False)
 
         super(MoneyField, self).__init__(verbose_name, name, max_digits, decimal_places, default=default, **kwargs)
-        self.creation_counter += 1
-        Field.creation_counter += 1
+
+        self.currency_property = currency_property
+
+        if not currency_property:
+            self.creation_counter += 1
+            Field.creation_counter += 1
 
     def setup_default(self, default, default_currency, nullable):
         if default is None and not nullable:
@@ -360,7 +367,7 @@ class MoneyField(models.DecimalField):
     def contribute_to_class(self, cls, name):
         cls._meta.has_money_field = True
 
-        if not self.frozen_by_south:
+        if not self.frozen_by_south and not self.currency_property:
             self.add_currency_field(cls, name)
 
         super(MoneyField, self).contribute_to_class(cls, name)
@@ -412,13 +419,18 @@ class MoneyField(models.DecimalField):
             return super(MoneyField, self).get_default()
 
     def formfield(self, **kwargs):
-        defaults = {'form_class': forms.MoneyField}
-        defaults.update(kwargs)
-        defaults['choices'] = self.currency_choices
-        defaults['default_currency'] = self.default_currency
-        if self.default is not None:
-            defaults['default_amount'] = self.default.amount
-        return super(MoneyField, self).formfield(**defaults)
+        if self.currency_property:
+            defaults = {'form_class': forms.MoneyDecimalField}
+            defaults.update(kwargs)
+            return super(MoneyField, self).formfield(**defaults)
+        else:
+            defaults = {'form_class': forms.MoneyField}
+            defaults.update(kwargs)
+            defaults['choices'] = self.currency_choices
+            defaults['default_currency'] = self.default_currency
+            if self.default is not None:
+                defaults['default_amount'] = self.default.amount
+            return super(MoneyField, self).formfield(**defaults)
 
     def value_to_string(self, obj):
         if VERSION < (2, 0):
