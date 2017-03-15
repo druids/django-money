@@ -221,7 +221,7 @@ class MoneyFieldProxy(object):
 
     def _money_from_obj(self, obj):
         amount = obj.__dict__[self.field.name]
-        currency = getattr(obj, self.currency_property or self.currency_field_name)
+        currency = getattr(obj, self.currency_property or self.currency_field_name, DEFAULT_CURRENCY)
         if amount is None or currency is None:
             return None
         return MoneyPatched(amount=amount, currency=currency)
@@ -463,6 +463,8 @@ class MoneyField(models.DecimalField):
             kwargs['default_currency'] = str(self.default_currency)
         if self.currency_choices != CURRENCY_CHOICES:
             kwargs['currency_choices'] = self.currency_choices
+        if self.currency_property is not None:
+            kwargs['currency_property'] = self.currency_property
         return name, path, args, kwargs
 
 
