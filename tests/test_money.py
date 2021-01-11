@@ -13,7 +13,7 @@ def test_float():
 
 
 def test_repr():
-    assert repr(Money('10.5', 'USD')) == '<Money: 10.5 USD>'
+    assert repr(Money('10.5', 'USD')) == "Money('10.5', 'USD')"
 
 
 def test_html_safe():

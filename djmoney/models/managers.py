@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-from six import wraps
+from functools import wraps
 
 from django.core.exceptions import FieldDoesNotExist
 from django.db.models import Case, F, Q
